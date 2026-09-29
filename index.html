@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html lang="en" style="--tg-viewport-height: 100vh; --tg-viewport-stable-height: 100vh;"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+				
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<style>
+					body {
+						background-color: white; /* Ensure the iframe has a white background */
+					}
+				</style>
+				<script>
+					var Z_CDN_WHITELIST = [
+						'cdn.jsdelivr.net',
+						'cdnjs.cloudflare.com',
+						'cdn.tailwindcss.com',
+						'unpkg.com',
+						'fonts.googleapis.com',
+						'd3js.org',
+						'cdn.babylonjs.com',
+						'html2canvas.hertzen.com',
+						'code.jquery.com',
+						'cdn.datatables.net',
+						'kit.fontawesome.com',
+						'code.createjs.com',
+						'cdn.plot.ly',
+						'fonts.gstatic.com',
+						'www.rgraph.net',
+						'api.mapbox.com',
+						'polyfill.io',
+						'cdn.quilljs.com',
+						'picsum.photos',
+						'esm.sh'
+					];
+
+					function z_isUrlInWhitelist(url) {
+						if (!url || typeof url !== 'string') {
+							return false;
+						}
+						try {
+							const urlObj = new URL(url);
+							const hostname = urlObj.hostname;
+							return Z_CDN_WHITELIST.some(domain => hostname === domain);
+						} catch (e) {
+							return false;
+						}
+					}
+
+						function z_proxyCdnUrl(url) {
+						if (!url || !url.startsWith('http')) {
+							return url;
+						}
+							if (!z_isUrlInWhitelist(url)) {
+							return url;
+						}
+						if (!url.startsWith('https://artifacts-cdn.chatglm.site/')) {
+							return 'https://artifacts-cdn.chatglm.site/' + url;
+						}
+						return url;
+					}
+					
+					// 增强版外部链接拦截 - 适合放在模板字符串中
+					document.addEventListener('click', function (ev) {
+						try {
+							const anchor = ev.target?.closest?.('a[href]') || null;
+							if (!anchor) return;
+
+							let href = anchor.getAttribute('href')?.trim() || '';
+							if (!href) return;
+
+							if (href.startsWith('javascript:')) return;
+
+							// 新需求：href="#" 的链接完全阻止跳转和任何行为
+							if (href === '#') {
+								ev.preventDefault();
+								return;
+							}
+
+							// 处理其他内部锚点（如 #about、#contact 等）
+							if (href.startsWith('#')) {
+								const rawId = href.slice(1);
+								if (!rawId) return;
+
+								const id = decodeURIComponent(rawId);
+								const target = 
+									document.getElementById(id) ||
+									document.querySelector('a[name="' + id.replace(/"/g, '\"') + '"]') ||
+									document.querySelector('[name="' + id.replace(/"/g, '\"') + '"]');
+
+								if (target && target.scrollIntoView) {
+									ev.preventDefault();
+									try {
+										history.pushState(null, '', href);
+									} catch (e) {}
+									target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+								}
+								return;
+							}
+
+							// 处理外部链接
+							let url;
+							try {
+								url = new URL(href, window.location.href);
+							} catch (e) {
+								return;
+							}
+
+							if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+							const isExternal = url.hostname !== window.location.hostname;
+
+							if (isExternal || anchor.getAttribute('target') === '_blank') {
+								ev.preventDefault();
+								window.open(url.toString(), '_blank', 'noopener,noreferrer');
+							}
+
+						} catch (e) {
+							// 出错时不阻止默认行为
+						}
+					}, true);
+
+					// 1. 暴力清除函数：从 DOM 层面抹除 onclick 属性
+					var Z_removeInlineOnclick = function () {
+						// 专门锁定 href="#" 且带有 onclick 的 a 标签
+						const targetedLinks = document.querySelectorAll('a[href="#"][onclick]');
+						for (let i = 0; i < targetedLinks.length; i++) {
+							targetedLinks[i].removeAttribute('onclick');
+							targetedLinks[i].onclick = null; // 确保 JS 层的赋值也被清理
+						}
+					};
+					// 3. 动态监测：防止页面通过异步加载重新生成带 onclick 的元素
+					var z_observer = new MutationObserver(function () {
+						Z_removeInlineOnclick();
+					});
+
+					z_observer.observe(document.documentElement, {
+						childList: true,
+						subtree: true,
+						attributes: true,
+						attributeFilter: ['onclick']
+					});
+
+					// 4. 初始化执行一次
+					Z_removeInlineOnclick();
+
+					const Z_rawCreateElement = document.createElement;
+
+					document.createElement = function (tagName, ...args) {
+						const el = Z_rawCreateElement.call(this, tagName, ...args);
+
+						if (tagName.toLowerCase() === 'script') {
+							const rawSetAttribute = el.setAttribute;
+							const rawGetAttribute = el.getAttribute;
+							let srcValue = '';
+							
+							el.setAttribute = function (name, value) {
+								if (name === 'src' && typeof value === 'string') {
+									value = z_proxyCdnUrl(value);
+									srcValue = value;
+								}
+								return rawSetAttribute.call(this, name, value);
+							};
+
+							Object.defineProperty(el, 'src', {
+								get: function() {
+									return srcValue || rawGetAttribute.call(this, 'src') || '';
+								},
+								set: function(value) {
+									if (typeof value === 'string') {
+										srcValue = z_proxyCdnUrl(value);
+										rawSetAttribute.call(this, 'src', srcValue);
+									} else {
+										srcValue = value;
+									}
+								},
+								configurable: true,
+								enumerable: true
+							});
+						}
+
+						if (tagName.toLowerCase() === 'link') {
+							const rawSetAttribute = el.setAttribute;
+							const rawGetAttribute = el.getAttribute;
+							let hrefValue = '';
+							
+							el.setAttribute = function (name, value) {
+								if (name === 'href' && typeof value === 'string') {
+									value = z_proxyCdnUrl(value);
+									hrefValue = value;
+								}
+								return rawSetAttribute.call(this, name, value);
+							};
+
+							Object.defineProperty(el, 'href', {
+								get: function() {
+									return hrefValue || rawGetAttribute.call(this, 'href') || '';
+								},
+								set: function(value) {
+									if (typeof value === 'string') {
+										hrefValue = z_proxyCdnUrl(value);
+										rawSetAttribute.call(this, 'href', hrefValue);
+									} else {
+										hrefValue = value;
+									}
+								},
+								configurable: true,
+								enumerable: true
+							});
+						}
+
+						return el;
+					};
+
+					const Z_OriginalXMLHttpRequest = window.XMLHttpRequest;
+					window.XMLHttpRequest = function (...args) {
+						const xhr = new Z_OriginalXMLHttpRequest(...args);
+						const rawOpen = xhr.open;
+
+						xhr.open = function (method, url, ...rest) {
+							if (typeof url === 'string') {
+								const methodUpper = (method || '').toUpperCase();
+								if (methodUpper === 'GET' && z_isUrlInWhitelist(url)) {
+									url = z_proxyCdnUrl(url);
+								}
+							}
+							return rawOpen.call(this, method, url, ...rest);
+						};
+
+						return xhr;
+					};
+
+					window.XMLHttpRequest.prototype = Z_OriginalXMLHttpRequest.prototype;
+					Object.setPrototypeOf(window.XMLHttpRequest, Z_OriginalXMLHttpRequest);
+
+					const z_originalFetch = window.fetch;
+					window.fetch = async function (...args) {
+						if (args.length > 0) {
+							let url = '';
+							let method = 'GET';
+							
+							if (typeof args[0] === 'string') {
+								url = args[0];
+								if (args[1] && args[1].method) {
+									method = args[1].method.toUpperCase();
+								}
+								if (method === 'GET' && z_isUrlInWhitelist(url)) {
+									args[0] = z_proxyCdnUrl(url);
+								}
+							} else if (args[0] instanceof Request) {
+								const originalUrl = args[0].url;
+								method = (args[0].method || 'GET').toUpperCase();
+								if (method === 'GET' && z_isUrlInWhitelist(originalUrl)) {
+									const proxiedUrl = z_proxyCdnUrl(originalUrl);
+									if (proxiedUrl !== originalUrl) {
+										args[0] = new Request(proxiedUrl, args[0]);
+									}
+								}
+							}
+						}
+						return z_originalFetch.apply(this, args);
+					};
+				</script>
+			<style></style></head>
+			<body>
+				
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Нумерологический пасьянс · Код Судьбы</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://artifacts-cdn.chatglm.site/https://fonts.googleapis.com">
+<link rel="preconnect" href="https://artifacts-cdn.chatglm.site/https://fonts.gstatic.com" crossorigin="">
+<link href="https://artifacts-cdn.chatglm.site/https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0A0A;
+    --gold:#D4AF37;
+    --gold-light:#EEDCA6;
+    --gold-dark:#94782A;
+    --ink:#F3EFE3;
+    --muted:#A79E86;
+    --muted2:#DCD5C2;
+    --line:rgba(212,175,55,.35);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  html,body{overflow-x:hidden}
+
+  body{
+    background:
+      radial-gradient(120% 78% at 50% -18%, rgba(212,175,55,.20) 0%, rgba(212,175,55,.06) 42%, transparent 68%),
+      radial-gradient(90% 55% at 50% 115%, rgba(212,175,55,.14) 0%, transparent 62%),
+      linear-gradient(180deg, #14100A 0%, #0B0A07 46%, #0E0B06 100%);
+    color:var(--ink);
+    font-family:'Montserrat',sans-serif;
+    font-weight:600;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background-image:
+      radial-gradient(circle 1.5px at 12% 18%, rgba(238,220,166,.45) 0%, transparent 100%),
+      radial-gradient(circle 1px at 78% 12%, rgba(238,220,166,.35) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 88% 46%, rgba(238,220,166,.30) 0%, transparent 100%),
+      radial-gradient(circle 1px at 22% 54%, rgba(238,220,166,.30) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 64% 72%, rgba(238,220,166,.35) 0%, transparent 100%),
+      radial-gradient(circle 1px at 8% 84%, rgba(238,220,166,.30) 0%, transparent 100%),
+      radial-gradient(circle 1.5px at 42% 92%, rgba(238,220,166,.40) 0%, transparent 100%),
+      radial-gradient(circle 1px at 92% 86%, rgba(238,220,166,.30) 0%, transparent 100%),
+      radial-gradient(circle 1px at 32% 32%, rgba(238,220,166,.25) 0%, transparent 100%),
+      repeating-linear-gradient(45deg, rgba(212,175,55,.015) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(-45deg, rgba(212,175,55,.015) 0 1px, transparent 1px 24px);
+  }
+  body::after{
+    content:'';position:fixed;inset:-10%;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(42% 30% at 26% 18%, rgba(212,175,55,.09), transparent 70%),
+      radial-gradient(38% 28% at 78% 36%, rgba(212,175,55,.07), transparent 70%),
+      radial-gradient(46% 32% at 40% 78%, rgba(212,175,55,.08), transparent 70%);
+    animation:aura 10s ease-in-out infinite alternate;
+  }
+  @keyframes aura{
+    from{opacity:.72;transform:scale(1)}
+    to{opacity:1;transform:scale(1.05)}
+  }
+
+  .app{max-width:1080px;margin:0 auto;padding:clamp(20px,4vw,40px) clamp(16px,3vw,40px) 56px;position:relative;z-index:1}
+
+  .brand{text-align:center;padding-bottom:clamp(16px,3vw,28px)}
+  .brand__name{font-size:clamp(11px,1.6vw,14px);letter-spacing:.34em;text-transform:uppercase}
+  .brand__divider{display:flex;align-items:center;gap:12px;max-width:340px;margin:12px auto}
+  .brand__divider::before,.brand__divider::after{content:'';flex:1;height:1px}
+  .brand__divider::before{background:linear-gradient(to right,transparent,rgba(212,175,55,.55))}
+  .brand__divider::after{background:linear-gradient(to left,transparent,rgba(212,175,55,.55))}
+  .brand__diamond{width:6px;height:6px;background:var(--gold);transform:rotate(45deg);flex:none;box-shadow:0 0 10px rgba(212,175,55,.7)}
+  .brand__code{font-size:clamp(10px,1.4vw,12px);letter-spacing:.5em;text-transform:uppercase;color:var(--gold)}
+
+  .hero{text-align:center;padding:clamp(12px,3vw,34px) 0 6px;position:relative}
+  .hero::before{
+    content:'';position:absolute;left:50%;top:-30px;transform:translateX(-50%);
+    width:min(620px,94vw);height:320px;pointer-events:none;
+    background:radial-gradient(50% 50% at 50% 42%, rgba(212,175,55,.16) 0%, rgba(212,175,55,.05) 45%, transparent 70%);
+  }
+  .hero h1,.hero__sub,.form{position:relative}
+  h1{font-size:clamp(1.9rem,8.5vw,4.25rem);line-height:1.1;font-weight:600;letter-spacing:.02em}
+  h1 .gold{color:var(--gold);text-shadow:0 0 34px rgba(212,175,55,.35)}
+  .hero__sub{margin:clamp(14px,2.5vw,22px) auto 0;max-width:580px;color:var(--muted);font-weight:500;font-size:clamp(13px,1.8vw,16px);line-height:1.65}
+
+  .form{margin:clamp(26px,4vw,44px) auto 0;max-width:540px}
+  .form__label{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:14px}
+  .date-row{display:flex;align-items:center;justify-content:center;gap:clamp(7px,1.6vw,12px)}
+  .date-row input{
+    background:rgba(212,175,55,.06);border:1px solid rgba(212,175,55,.4);border-radius:3px;
+    color:var(--ink);font-family:inherit;font-weight:600;font-size:clamp(17px,4vw,22px);
+    letter-spacing:.08em;text-align:center;padding:14px 4px;outline:none;
+    width:clamp(60px,18vw,84px);transition:border-color .25s,background .25s,box-shadow .25s;
+  }
+  #yyyy{width:clamp(86px,26vw,118px)}
+  .date-row input::placeholder{color:rgba(212,175,55,.35);letter-spacing:.08em}
+  .date-row input:focus{border-color:var(--gold);background:rgba(212,175,55,.1);box-shadow:0 0 18px rgba(212,175,55,.15)}
+  .dot{width:5px;height:5px;background:var(--gold);transform:rotate(45deg);opacity:.55;flex:none}
+  .form__error{min-height:22px;margin-top:12px;font-size:13px;color:#E2B65D;font-weight:500;letter-spacing:.03em}
+  @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .shake{animation:shake .35s ease}
+
+  .btn{
+    display:block;width:100%;max-width:420px;margin:8px auto 0;
+    background:linear-gradient(180deg,#E8CA66 0%,#D4AF37 60%,#C9A63A 100%);
+    color:#0A0A0A;border:none;border-radius:3px;
+    font-family:inherit;font-weight:700;font-size:clamp(14px,2vw,16px);
+    letter-spacing:.14em;text-transform:uppercase;padding:17px 24px;cursor:pointer;
+    text-align:center;text-decoration:none;
+    box-shadow:0 6px 30px rgba(212,175,55,.28), inset 0 1px 0 rgba(255,255,255,.25);
+    transition:box-shadow .25s,transform .15s;
+  }
+  .btn:hover{box-shadow:0 8px 40px rgba(212,175,55,.42), inset 0 1px 0 rgba(255,255,255,.3)}
+  .btn:active{transform:translateY(1px)}
+
+  #result{margin-top:clamp(40px,6vw,64px);scroll-margin-top:12px}
+  .hidden{display:none}
+  .sec{margin-top:clamp(36px,5vw,56px)}
+  .sec__label{
+    display:flex;align-items:center;gap:16px;justify-content:center;
+    margin-bottom:clamp(20px,3vw,30px);color:var(--gold);
+    font-size:clamp(11px,1.5vw,13px);letter-spacing:.4em;text-transform:uppercase;
+  }
+  .sec__label::before,.sec__label::after{content:'';flex:1;max-width:180px;height:1px;background:var(--line)}
+
+  .cards{display:flex;flex-direction:column;gap:clamp(12px,2vw,20px);align-items:center}
+  .cards__row{display:flex;gap:clamp(8px,1.8vw,18px);justify-content:center;width:100%}
+  .card{
+    --h:44;
+    flex:1 1 0;max-width:clamp(120px,16vw,180px);min-height:110px;aspect-ratio:5/7.6;
+    background:linear-gradient(165deg,hsl(var(--h),30%,13%) 0%,#0F0D07 68%);
+    border:1px solid hsla(var(--h),55%,62%,.42);border-radius:8px;
+    box-shadow:0 14px 44px rgba(0,0,0,.45), 0 0 24px hsla(var(--h),60%,50%,.10);
+    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:8px;overflow:hidden;opacity:0;
+    transition:border-color .35s,transform .35s,box-shadow .35s;
+  }
+  .card--day{--h:44}
+  .card--month{--h:340}
+  .card--year{--h:215}
+  .card--destiny{--h:155}
+  .card--energy{--h:25}
+  .card--jan{--h:195}
+  .card--feb{--h:275}
+  .card::before{content:'';position:absolute;inset:5px;border:1px solid hsla(var(--h),50%,65%,.20);border-radius:5px;pointer-events:none;z-index:2}
+  .card__art{position:absolute;inset:0;color:hsla(var(--h),70%,64%,.45);pointer-events:none}
+  .card__art svg{width:100%;height:100%;display:block}
+  .card__value{
+    position:relative;z-index:3;font-weight:700;font-size:clamp(1.7rem,6vw,3.4rem);
+    color:hsl(var(--h),75%,76%);line-height:1;
+    text-shadow:0 0 20px hsla(var(--h),85%,60%,.5);
+  }
+  .card__title{
+    position:absolute;left:6px;right:6px;bottom:9px;z-index:3;
+    font-weight:600;font-size:clamp(8px,1.6vw,11px);letter-spacing:.14em;text-transform:uppercase;
+    color:hsla(var(--h),30%,82%,.85);text-align:center;line-height:1.35;
+  }
+  @keyframes deal{
+    0%{opacity:0;transform:translateY(28px) rotate(-5deg) scale(.94)}
+    60%{opacity:1;transform:translateY(-5px) rotate(1.2deg) scale(1.02)}
+    100%{opacity:1;transform:translateY(0) rotate(0) scale(1)}
+  }
+  .card.dealt{animation:deal .6s cubic-bezier(.2,.8,.3,1.15) both}
+  .card.shown{opacity:1}
+  .card.c-res{box-shadow:0 14px 44px rgba(0,0,0,.45), 0 0 26px rgba(212,175,55,.16)}
+  .card.c-syn{box-shadow:0 14px 44px rgba(0,0,0,.45), 0 0 26px rgba(238,220,166,.14)}
+  .card.c-ten{box-shadow:0 14px 44px rgba(0,0,0,.45), 0 0 26px rgba(148,120,42,.22)}
+  .card.lit{transform:translateY(-5px)}
+  .card.lit.c-res{box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(240,216,128,.95), 0 0 30px rgba(212,175,55,.40)}
+  .card.lit.c-syn{box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(247,236,192,.85), 0 0 30px rgba(238,220,166,.32)}
+  .card.lit.c-ten{box-shadow:0 14px 44px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(199,164,66,.90), 0 0 30px rgba(148,120,42,.42)}
+
+  .links{display:flex;flex-direction:column;gap:10px;max-width:660px;margin:clamp(18px,3vw,28px) auto 0}
+  .link{
+    display:flex;align-items:flex-start;gap:14px;padding:14px 16px;
+    background:rgba(212,175,55,.06);border-left:2px solid;border-radius:0 4px 4px 0;
+    cursor:pointer;transition:background .25s;
+  }
+  .link:hover{background:rgba(212,175,55,.11)}
+  .link--res{border-left-color:var(--gold)}
+  .link--syn{border-left-color:var(--gold-light)}
+  .link--ten{border-left-color:var(--gold-dark)}
+  .link__tag{flex:none;min-width:88px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;padding-top:2px}
+  .link--res .link__tag{color:var(--gold)}
+  .link--syn .link__tag{color:var(--gold-light)}
+  .link--ten .link__tag{color:var(--gold-dark)}
+  .link__text{font-weight:500;font-size:clamp(13px,1.8vw,15px);line-height:1.55;color:var(--muted2)}
+  .links__empty{text-align:center;color:var(--muted);font-weight:500;font-size:14px;line-height:1.6;padding:10px 0}
+
+  .interp{display:flex;flex-direction:column;gap:14px;max-width:660px;margin:0 auto}
+  .interp__item{
+    display:flex;gap:16px;align-items:flex-start;padding:16px;
+    border:1px solid rgba(212,175,55,.22);border-radius:6px;background:rgba(212,175,55,.035);
+  }
+  .interp__num{
+    flex:none;width:52px;height:52px;border:1px solid rgba(212,175,55,.5);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.5rem;color:var(--gold);
+    background:rgba(212,175,55,.06);text-shadow:0 0 14px rgba(212,175,55,.45);
+  }
+  .interp__title{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+  .interp__text{font-weight:500;font-size:clamp(13px,1.8vw,15px);line-height:1.6;color:var(--muted2)}
+
+  .demo{
+    max-width:660px;margin:clamp(40px,6vw,60px) auto 0;padding:clamp(20px,3vw,28px);
+    border:1px solid rgba(212,175,55,.35);border-radius:6px;text-align:center;position:relative;
+    background:rgba(212,175,55,.04);
+  }
+  .demo::before{content:'';position:absolute;inset:5px;border:1px solid rgba(212,175,55,.14);border-radius:4px;pointer-events:none}
+  .demo__title{color:var(--gold);font-size:11px;letter-spacing:.4em;text-transform:uppercase;margin-bottom:12px}
+  .demo__text{color:#C9C1AB;font-weight:500;font-size:clamp(13px,1.8vw,15px);line-height:1.7}
+  .final{text-align:center;margin-top:clamp(28px,4vw,40px)}
+  .footer{margin-top:clamp(36px,5vw,50px);text-align:center;color:#6E6754;font-weight:500;font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+
+  .rise{animation:rise .6s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .card{opacity:1!important}
+  }
+</style>
+
+
+<div class="app">
+
+  <header class="brand">
+    <div class="brand__name">Юлия Загумённова</div>
+    <div class="brand__divider"><span class="brand__diamond"></span></div>
+    <div class="brand__code">Код Судьбы</div>
+  </header>
+
+  <section class="hero">
+    <h1>Нумерологический<br><span class="gold">Пасьянс</span></h1>
+    <p class="hero__sub">Семь карт вашей даты рождения, их тайные связи и прогноз на 2027 год — с ключом к январю и февралю.</p>
+    <form id="form" class="form" novalidate="">
+      <label class="form__label" for="dd">Дата рождения</label>
+      <div class="date-row" id="dateRow">
+        <input id="dd" maxlength="2" inputmode="numeric" autocomplete="off" placeholder="ДД" aria-label="День">
+        <span class="dot"></span>
+        <input id="mm" maxlength="2" inputmode="numeric" autocomplete="off" placeholder="ММ" aria-label="Месяц">
+        <span class="dot"></span>
+        <input id="yyyy" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="ГГГГ" aria-label="Год">
+      </div>
+      <div class="form__error" id="error" role="alert"></div>
+      <button type="submit" class="btn">Разложить пасьянс</button>
+    </form>
+  </section>
+
+  <section id="result" class="hidden" aria-live="polite">
+
+    <div class="sec">
+      <div class="sec__label">Расклад</div>
+      <div class="cards">
+        <div class="cards__row" id="row1"></div>
+        <div class="cards__row" id="row2"></div>
+      </div>
+      <div class="links" id="links"></div>
+    </div>
+
+    <div class="sec" id="secMeanings">
+      <div class="sec__label">Значение карт</div>
+      <div class="interp" id="meanings"></div>
+    </div>
+
+    <div class="sec" id="secForecast">
+      <div class="sec__label">Прогноз на 2027 год</div>
+      <div class="interp" id="forecast"></div>
+    </div>
+
+    <div class="demo" id="demo">
+      <div class="demo__title">Это демо-версия</div>
+      <p class="demo__text">Полный разбор включает: все 12 месяцев, детальную интерпретацию каждой карты, рекомендации по сферам — карьера, финансы, отношения.</p>
+    </div>
+
+    <div class="final">
+      <a class="btn" href="https://t.me/YZagumennova" target="_blank" rel="noopener">Заказать полный разбор</a>
+    </div>
+
+    <footer class="footer">Код Судьбы · Юлия Загумённова</footer>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  try{
+    if(window.Telegram && window.Telegram.WebApp){
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      if(Telegram.WebApp.setHeaderColor) Telegram.WebApp.setHeaderColor('#0A0A0A');
+      if(Telegram.WebApp.setBackgroundColor) Telegram.WebApp.setBackgroundColor('#0A0A0A');
+    }
+  }catch(e){}
+
+  const DAY = [
+    'Вы действуете решительно и независимо. Ваша сила — в инициативе.',
+    'Вы действуете мягко и дипломатично. Ваша сила — в партнёрстве.',
+    'Вы действуете творчески и легко. Ваша сила — в самовыражении.',
+    'Вы действуете системно и надёжно. Ваша сила — в дисциплине.',
+    'Вы действуете гибко и быстро. Ваша сила — в адаптивности.',
+    'Вы действуете заботливо и гармонично. Ваша сила — в поддержке.',
+    'Вы действуете вдумчиво и глубоко. Ваша сила — в анализе.',
+    'Вы действуете масштабно и уверенно. Ваша сила — в управлении.',
+    'Вы действуете мудро и самоотверженно. Ваша сила — в отдаче.'
+  ];
+  const MONTH = [
+    'Ваша эмоциональная сфера — лидерство и воля.',
+    'Ваша эмоциональная сфера — партнёрство и чуткость.',
+    'Ваша эмоциональная сфера — творчество и радость.',
+    'Ваша эмоциональная сфера — стабильность и порядок.',
+    'Ваша эмоциональная сфера — свобода и перемены.',
+    'Ваша эмоциональная сфера — забота и гармония.',
+    'Ваша эмоциональная сфера — глубина и анализ.',
+    'Ваша эмоциональная сфера — сила и контроль.',
+    'Ваша эмоциональная сфера — мудрость и сострадание.'
+  ];
+  const YEAR = [
+    'Ваш жизненный путь — быть лидером и первопроходцем.',
+    'Ваш жизненный путь — быть дипломатом и партнёром.',
+    'Ваш жизненный путь — быть творцом и вдохновителем.',
+    'Ваш жизненный путь — быть строителем и опорой.',
+    'Ваш жизненный путь — быть искателем и реформатором.',
+    'Ваш жизненный путь — быть хранителем и заботливым.',
+    'Ваш жизненный путь — быть аналитиком и исследователем.',
+    'Ваш жизненный путь — быть управленцем и стратегом.',
+    'Ваш жизненный путь — быть мудрецом и завершителем.'
+  ];
+  const DESTINY = [
+    'Ваша главная задача — научиться быть самостоятельным.',
+    'Ваша главная задача — научиться выстраивать отношения.',
+    'Ваша главная задача — научиться самовыражаться.',
+    'Ваша главная задача — научиться создавать порядок.',
+    'Ваша главная задача — научиться принимать перемены.',
+    'Ваша главная задача — научиться заботиться и любить.',
+    'Ваша главная задача — научиться познавать и доверять.',
+    'Ваша главная задача — научиться управлять и достигать.',
+    'Ваша главная задача — научиться отпускать и служить.'
+  ];
+  const ENERGY_YEAR = [
+    'Год новых начинаний и лидерства. Время действовать самостоятельно.',
+    'Год сотрудничества и дипломатии. Успех через партнёрство.',
+    'Год самовыражения и общения. Таланты откроют новые двери.',
+    'Год труда и порядка. Закладывайте фундамент — результаты придут позже.',
+    'Год перемен и свободы. Время риска и новых возможностей.',
+    'Год семьи и гармонии. Время укреплять отношения.',
+    'Год самоанализа и познания. Время замедлиться и учиться.',
+    'Год финансов и результатов. Время управлять деньгами и достигать целей.',
+    'Год завершения и очищения. Отпускайте старое.'
+  ];
+  const MONTH_F = [
+    'Месяц инициативы и новых начинаний. Действуйте решительно, закладывайте фундамент.',
+    'Месяц переговоров и терпения. Успех приходит через сотрудничество и дипломатию.',
+    'Месяц творчества и общения. Проявляйте себя, будьте в центре внимания.',
+    'Месяц труда и дисциплины. Завершайте начатое, наводите порядок.',
+    'Месяц перемен и движения. Рискуйте, путешествуйте, пробуйте новое.',
+    'Месяц семьи и заботы. Уделите время близким, создайте уют.',
+    'Месяц уединения и анализа. Замедлитесь, займитесь самоанализом.',
+    'Месяц финансов и дел. Берите инициативу, решайте денежные вопросы.',
+    'Месяц завершения и очищения. Завершайте дела, отпускайте лишнее.'
+  ];
+
+  const CARDS = [
+    {key:'day',     title:'День',         name:'Число дня',      role:'ваш стиль действий'},
+    {key:'month',   title:'Месяц',        name:'Число месяца',   role:'ваша эмоциональная сфера'},
+    {key:'year',    title:'Год',          name:'Число года',     role:'ваш жизненный путь'},
+    {key:'destiny', title:'Судьба',       name:'Число судьбы',   role:'ваша главная задача'},
+    {key:'energy',  title:'Энергия 2027', name:'Энергия 2027',   role:'тема 2027 года'},
+    {key:'jan',     title:'Январь 2027',  name:'Январь 2027',    role:'энергия января'},
+    {key:'feb',     title:'Февраль 2027', name:'Февраль 2027',   role:'энергия февраля'}
+  ];
+  const DESCS = {day:DAY, month:MONTH, year:YEAR, destiny:DESTINY, energy:ENERGY_YEAR};
+
+  const CARD_HUE = {day:44, month:340, year:215, destiny:155, energy:25, jan:195, feb:275};
+
+  const digitSum = n => String(n).split('').reduce((s,c)=>s+Number(c),0);
+  const root = n => { while(n>9) n = digitSum(n); return n; };
+
+  function compute(dd, mm, yyyy){
+    const day     = root(dd);
+    const month   = root(mm);
+    const year    = root(yyyy);
+    const destiny = root(digitSum(dd)+digitSum(mm)+digitSum(yyyy));
+    const energy  = root(digitSum(dd)+digitSum(mm)+root(2027));
+    return { day, month, year, destiny, energy, jan:root(energy+1), feb:root(energy+2) };
+  }
+
+  const SYN = ['1-2','2-8','3-4','5-6','7-8','8-9'];
+  const TEN = ['1-8','2-7','3-7','4-6','5-9'];
+
+  const KW = {
+    1:'инициатива и самостоятельность',
+    2:'дипломатия и партнёрство',
+    3:'творчество и самовыражение',
+    4:'порядок и дисциплина',
+    5:'свобода и перемены',
+    6:'забота и гармония',
+    7:'глубина и анализ',
+    8:'управление и результат',
+    9:'завершение и отдача'
+  };
+  const SYN_MEAN = {
+    '1-2':'инициатива получает поддержку — самостоятельность и дипломатия работают в одной связке',
+    '2-8':'чуткость открывает путь к ресурсам — дипломатия помогает достигать масштабных результатов',
+    '3-4':'идеи обретают форму — творчество опирается на дисциплину и порядок',
+    '5-6':'перемены проходят мягко — движение и новизна сочетаются с заботой о близких',
+    '7-8':'понимание превращается в результат — глубокий анализ ведёт к управлению и доходу',
+    '8-9':'достигнутое закрепляется — масштаб соединяется с мудрым завершением'
+  };
+  const TEN_MEAN = {
+    '1-8':'желание действовать самостоятельно и по-своему сталкивается с финансовой ответственностью и рамками структуры',
+    '2-7':'потребность быть среди людей и договариваться сталкивается с потребностью в тишине и глубоком анализе',
+    '3-7':'желание проявляться и общаться сталкивается с потребностью замедлиться и всё обдумать',
+    '4-6':'рабочая дисциплина и порядок сталкиваются с семейными заботами и желанием гармонии',
+    '5-9':'тяга к новому и переменам сталкивается с необходимостью завершить старое'
+  };
+
+  function relation(a,b){
+    if(a===b) return 'res';
+    const k = [a,b].sort((x,y)=>x-y).join('-');
+    if(SYN.indexOf(k)>-1) return 'syn';
+    if(TEN.indexOf(k)>-1) return 'ten';
+    return null;
+  }
+  const pairKey = (a,b) => [a,b].sort((x,y)=>x-y).join('-');
+
+  const TYPE_LABEL = {res:'Резонанс', syn:'Синергия', ten:'Напряжение'};
+  const TYPE_RANK  = {res:0, syn:1, ten:2};
+  const CARD_PRIO  = {destiny:0, energy:1, day:2, year:3, month:4, jan:5, feb:6};
+  const CAPS = {res:3, syn:2, ten:3};
+
+  function pickLinks(vals){
+    const pairs = [];
+    for(let i=0;i<CARDS.length;i++)
+      for(let j=i+1;j<CARDS.length;j++){
+        const t = relation(vals[i], vals[j]);
+        if(t) pairs.push({i, j, type:t, score:CARD_PRIO[CARDS[i].key]+CARD_PRIO[CARDS[j].key]});
+      }
+    pairs.sort((a,b)=> TYPE_RANK[a.type]-TYPE_RANK[b.type] || a.score-b.score);
+    const n = {res:0, syn:0, ten:0};
+    return pairs.filter(p => n[p.type]++ < CAPS[p.type]);
+  }
+
+  function linkText(p, vals){
+    const A = CARDS[p.i], B = CARDS[p.j];
+    const a = vals[p.i], b = vals[p.j];
+    const k = [A.key, B.key];
+    const pair = pairKey(a,b);
+
+    if(p.type==='res'){
+      let tail;
+      if(k.indexOf('energy')>-1)    tail = 'Год настроен на вашу частоту — 2027 будет играть на вас.';
+      else if(k.indexOf('jan')>-1)  tail = 'Начало года попадает в вашу волну — январь усилит ваши сильные стороны.';
+      else if(k.indexOf('feb')>-1)  tail = 'Февраль пройдёт в вашем ритме — хорошее время действовать в своём стиле.';
+      else                          tail = 'Эта энергия удвоена и становится стержнем вашей натуры — опирайтесь на неё в решениях и делах.';
+      return A.name+' ('+a+') и '+B.name+' ('+b+') совпадают: '+A.role+' и '+B.role+' говорят об одном — '+KW[a]+'. '+tail;
+    }
+    if(p.type==='syn'){
+      let tail;
+      if(k.indexOf('energy')>-1)                    tail = 'Год будет продуктивным.';
+      else if(k.indexOf('jan')>-1 && k.indexOf('feb')>-1) tail = 'Январь задаёт ход — февраль его закрепит: стройте на этой связке планы на год.';
+      else if(k.indexOf('jan')>-1)                  tail = 'Январь подыгрывает вашим сильным сторонам — удачное время для старта.';
+      else if(k.indexOf('feb')>-1)                  tail = 'Февраль пройдёт легко и с поддержкой.';
+      else                                          tail = 'Эти энергии работают в унисон.';
+      return A.name+' ('+a+') и '+B.name+' ('+b+') дополняют друг друга: '+(SYN_MEAN[pair]||'эти энергии усиливают друг друга')+'. '+tail;
+    }
+    let tail;
+    if(k.indexOf('jan')>-1)         tail = 'В январе это напряжение будет заметно — не форсируйте события.';
+    else if(k.indexOf('feb')>-1)    tail = 'Будьте внимательны в этот месяц.';
+    else if(k.indexOf('energy')>-1) tail = 'Учитывайте это сочетание при планировании года.';
+    else                            tail = 'Это внутреннее напряжение двух ваших энергий — не «или-или», а баланс: чередуйте эти потребности, а не подавляйте одну из них.';
+    return A.name+' ('+a+') и '+B.name+' ('+b+') конфликтуют: '+(TEN_MEAN[pair]||'эти энергии вступают в противоречие')+'. '+tail;
+  }
+
+  let artUid = 0;
+
+  function starPts(n, R, r, cx, cy){
+    const pts = [];
+    for(let i=0;i<n*2;i++){
+      const rad = (i%2===0) ? R : r;
+      const ang = Math.PI*i/n;
+      pts.push((cx+rad*Math.sin(ang)).toFixed(1)+','+(cy-rad*Math.cos(ang)).toFixed(1));
+    }
+    return pts.join(' ');
+  }
+
+  function cardArt(val, key, uid){
+    const h = CARD_HUE[key];
+    const S = 'stroke="currentColor" fill="none" stroke-width="1.4"';
+    let sig;
+    if(val===1){
+      sig = '<circle cx="60" cy="86" r="30" '+S+'/>'
+          + '<line x1="60" y1="38" x2="60" y2="134" '+S+'/>'
+          + '<circle cx="60" cy="86" r="4" fill="currentColor"/>';
+    }else if(val===2){
+      sig = '<circle cx="47" cy="86" r="27" '+S+'/>'
+          + '<circle cx="73" cy="86" r="27" '+S+'/>';
+    }else{
+      sig = '<polygon points="'+starPts(val,40,18,60,86)+'" '+S+'/>';
+    }
+    const spark = [[16,28,1],[104,24,1.3],[12,118,1.2],[108,128,1],[18,146,1.3],[102,146,1],[60,20,1.1],[99,74,.9],[21,54,.9]]
+      .map(p=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+p[2]+'" fill="currentColor" opacity=".55"/>').join('');
+    const dia = y => '<path d="M60 '+(y-6)+' l5 6 -5 6 -5 -6 Z" fill="currentColor" opacity=".8"/>';
+    return '<svg viewBox="0 0 120 182" aria-hidden="true">'
+      + '<defs><radialGradient id="g'+uid+'" cx="50%" cy="47%" r="50%">'
+      + '<stop offset="0%" stop-color="hsl('+h+',70%,55%)" stop-opacity=".38"/>'
+      + '<stop offset="100%" stop-color="hsl('+h+',70%,55%)" stop-opacity="0"/>'
+      + '</radialGradient></defs>'
+      + '<circle cx="60" cy="86" r="58" fill="url(#g'+uid+')"/>'
+      + '<circle cx="60" cy="86" r="52" '+S+' opacity=".3" stroke-dasharray="3 6"/>'
+      + '<circle cx="60" cy="34" r="2.2" fill="currentColor" opacity=".7"/>'
+      + '<circle cx="97" cy="118" r="2" fill="currentColor" opacity=".6"/>'
+      + '<circle cx="24" cy="128" r="2" fill="currentColor" opacity=".6"/>'
+      + spark
+      + sig
+      + dia(20) + dia(148)
+      + '<path d="M22 14 H16 a2 2 0 0 0 -2 2 v6" '+S+'/>'
+      + '<path d="M98 14 h6 a2 2 0 0 1 2 2 v6" '+S+'/>'
+      + '<path d="M22 168 H16 a2 2 0 0 1 -2 -2 v-6" '+S+'/>'
+      + '<path d="M98 168 h6 a2 2 0 0 0 2 -2 v-6" '+S+'/>'
+      + '</svg>';
+  }
+
+  const $ = s => document.querySelector(s);
+  const row1=$('#row1'), row2=$('#row2'), linksBox=$('#links'),
+        meaningsBox=$('#meanings'), forecastBox=$('#forecast'),
+        result=$('#result'), errorBox=$('#error'), dateRow=$('#dateRow');
+  let cardEls = [];
+
+  const DEAL_STEP = 300;
+
+  function renderCards(vals){
+    row1.innerHTML=''; row2.innerHTML=''; cardEls=[];
+    CARDS.forEach((c,i)=>{
+      const el = document.createElement('div');
+      el.className = 'card card--'+c.key;
+      el.innerHTML = cardArt(vals[i], c.key, ++artUid)
+                   + '<div class="card__value">'+vals[i]+'</div>'
+                   + '<div class="card__title">'+c.title+'</div>';
+      const done = () => { el.classList.add('shown'); el.classList.remove('dealt'); };
+      el.addEventListener('animationend', done, {once:true});
+      el.addEventListener('animationcancel', done, {once:true});
+      setTimeout(done, 140 + i*DEAL_STEP + 700);
+      (i<3 ? row1 : row2).appendChild(el);
+      cardEls.push(el);
+      setTimeout(()=> el.classList.add('dealt'), 140 + i*DEAL_STEP);
+    });
+  }
+
+  function renderLinks(shown, vals){
+    linksBox.innerHTML='';
+    if(!shown.length){
+      linksBox.innerHTML = '<div class="links__empty">Выраженных связей нет — каждая карта действует самостоятельно.</div>';
+      return;
+    }
+    const best = {};
+    shown.forEach(p=>{
+      [p.i,p.j].forEach(i=>{
+        if(best[i]===undefined || TYPE_RANK[p.type] < TYPE_RANK[best[i]]) best[i]=p.type;
+      });
+    });
+    cardEls.forEach((el,i)=>{ if(best[i]) el.classList.add('c-'+best[i]); });
+
+    shown.forEach(p=>{
+      const d = document.createElement('div');
+      d.className = 'link link--'+p.type;
+      d.innerHTML = '<span class="link__tag">'+TYPE_LABEL[p.type]+'</span><span class="link__text">'+linkText(p,vals)+'</span>';
+      const lit = on => [p.i,p.j].forEach(i=>cardEls[i].classList.toggle('lit', on));
+      d.addEventListener('mouseenter', ()=>lit(true));
+      d.addEventListener('mouseleave', ()=>lit(false));
+      d.addEventListener('click', ()=>{ lit(true); setTimeout(()=>lit(false), 2200); });
+      linksBox.appendChild(d);
+    });
+  }
+
+  function interpItem(value, title, text){
+    return '<div class="interp__item"><div class="interp__num">'+value+'</div>'+
+           '<div><div class="interp__title">'+title+'</div><div class="interp__text">'+text+'</div></div></div>';
+  }
+
+  function renderContent(v){
+    meaningsBox.innerHTML =
+      interpItem(v.day,     'Число дня',      DESCS.day[v.day-1]) +
+      interpItem(v.month,   'Число месяца',   DESCS.month[v.month-1]) +
+      interpItem(v.year,    'Число года',     DESCS.year[v.year-1]) +
+      interpItem(v.destiny, 'Число судьбы',   DESCS.destiny[v.destiny-1]);
+
+    forecastBox.innerHTML =
+      interpItem(v.energy, 'Энергия года 2027', ENERGY_YEAR[v.energy-1]) +
+      interpItem(v.jan,    'Январь 2027',       MONTH_F[v.jan-1]) +
+      interpItem(v.feb,    'Февраль 2027',      MONTH_F[v.feb-1]);
+  }
+
+  function animateIn(v, vals, shown){
+    result.classList.remove('hidden');
+    renderCards(vals);
+    renderLinks(shown, vals);
+    renderContent(v);
+    const seq = [linksBox, $('#secMeanings'), $('#secForecast'), $('#demo'), $('.final'), $('.footer')];
+    const base = 140 + (CARDS.length-1)*DEAL_STEP + 420;
+    seq.forEach((el,i)=>{
+      el.classList.remove('rise');
+      el.style.animationDelay = (base + i*130)+'ms';
+      void el.offsetWidth;
+      el.classList.add('rise');
+    });
+  }
+
+  const dd=$('#dd'), mm=$('#mm'), yyyy=$('#yyyy');
+  [dd,mm].forEach((el,i)=>{
+    el.addEventListener('input',()=>{
+      el.value = el.value.replace(/\D/g,'').slice(0,2);
+      if(el.value.length===2) (i===0 ? mm : yyyy).focus();
+    });
+  });
+  yyyy.addEventListener('input',()=>{ yyyy.value = yyyy.value.replace(/\D/g,'').slice(0,4); });
+  dateRow.addEventListener('paste',e=>{
+    const t = (e.clipboardData||window.clipboardData).getData('text')||'';
+    const d = t.replace(/\D/g,'');
+    if(d.length===8){
+      e.preventDefault();
+      dd.value=d.slice(0,2); mm.value=d.slice(2,4); yyyy.value=d.slice(4,8);
+      errorBox.textContent='';
+    }
+  });
+
+  function showError(msg){
+    errorBox.textContent = msg;
+    dateRow.classList.remove('shake'); void dateRow.offsetWidth; dateRow.classList.add('shake');
+  }
+
+  $('#form').addEventListener('submit',e=>{
+    e.preventDefault();
+    errorBox.textContent='';
+    const d=+dd.value, m=+mm.value, y=+yyyy.value;
+    if(!d||!m||!y||yyyy.value.length<4){ showError('Пожалуйста, введите полную дату рождения.'); return; }
+    const maxYear = new Date().getFullYear();
+    if(y<1900||y>maxYear){ showError('Год рождения должен быть в диапазоне 1900–'+maxYear+'.'); return; }
+    const dt = new Date(y, m-1, d);
+    if(m<1||m>12||d<1||dt.getDate()!==d||dt.getMonth()!==m-1){ showError('Проверьте дату — такой даты не существует.'); return; }
+
+    const v = compute(d,m,y);
+    const vals = CARDS.map(c=>v[c.key]);
+    const shown = pickLinks(vals);
+    animateIn(v, vals, shown);
+    setTimeout(()=> result.scrollIntoView({behavior:'smooth', block:'start'}), 60);
+  });
+})();
+</script>
+
+
+			
+		
+</body></html>
